@@ -18,6 +18,17 @@ pip install -U g4f
 ```sh
 docker pull hlohaus789/g4f
 ```
+# To do
+As per the survey, here is a list of improvements to come
+- [ ] Improve Documentation (on g4f.mintlify.app) & Do video tutorials
+- [ ] Improve the provider status list & updates
+- [ ] Tutorials on how to reverse sites to write your own wrapper (PoC only ofc)
+- [ ] Improve the Bing wrapper. (might write a new wrapper in golang as it is very fast)
+- [ ] Write a standard provider performance test to improve the stability
+- [ ] update the repository to include the new openai library syntax (ex: `Openai()` class)
+- [ ] Potential support and development of local models
+- [ ] improve compatibility and error handling
+
 
 ## 🆕 What's New
 - <a href="./README-DE.md"><img src="https://img.shields.io/badge/öffnen in-🇩🇪 deutsch-bleu.svg" alt="Öffnen en DE"></a>
@@ -37,6 +48,7 @@ docker pull hlohaus789/g4f
       - [Install using pypi](#install-using-pypi)
     + [Docker for Developers](#docker-for-developers)
 - [💡 Usage](#-usage)
+  * [The Web UI](#the-web-ui)
   * [The `g4f` Package](#the-g4f-package)
     + [ChatCompletion](#chatcompletion)
       - [Completion](#completion)
@@ -87,8 +99,33 @@ or set the api base in your client to: [http://localhost:1337/v1](http://localho
 
 ##### Install using pypi:
 
+Install all supported tools / all used packages:
 ```
-pip install -U g4f
+pip install -U g4f[all]
+```
+Install required packages for the OpenaiChat provider:
+```
+pip install -U g4f[openai]
+```
+Install required packages for the interference api:
+```
+pip install -U g4f[api]
+```
+Install required packages for the web interface:
+```
+pip install -U g4f[gui]
+```
+Install required packages for uploading / generating images:
+```
+pip install -U g4f[image]
+```
+Install required packages for providers with webdriver:
+```
+pip install -U g4f[webdriver]
+```
+Install required packages for proxy support:
+```
+pip install -U aiohttp_socks
 ```
 
 ##### or:
@@ -122,13 +159,19 @@ python3 -m venv venv
    ```
    source venv/bin/activate
    ```
-5. Install the required Python packages from `requirements.txt`:
+5. Install minimum requirements:
+
+```
+pip install -r requirements-min.txt
+```
+
+6. Or install all used Python packages from `requirements.txt`:
 
 ```
 pip install -r requirements.txt
 ```
 
-6. Create a `test.py` file in the root folder and start using the repo, further Instructions are below
+7. Create a `test.py` file in the root folder and start using the repo, further Instructions are below
 
 ```py
 import g4f
@@ -181,6 +224,15 @@ docker-compose down
 > When using Docker, any changes you make to your local files will be reflected in the Docker container thanks to the volume mapping in the `docker-compose.yml` file. If you add or remove dependencies, however, you'll need to rebuild the Docker image using `docker-compose build`.
 
 ## 💡 Usage
+
+### The Web UI
+
+To start the web interface, type the following codes in the command line.
+
+```python
+from g4f.gui import run_gui
+run_gui()
+```
 
 ### The `g4f` Package
 
@@ -255,6 +307,33 @@ response = g4f.ChatCompletion.create(
 )
 for message in response:
     print(message)
+```
+
+##### Cookies / Access Token
+
+For generating images with Bing and for the OpenAi Chat  you need cookies or a token from your browser session. From Bing you need the "_U" cookie and from OpenAI you need the "access_token". You can pass the cookies / the  access token in the create function or you use the `set_cookies` setter:
+
+```python
+from g4f import set_cookies
+
+set_cookies(".bing", {
+  "_U": "cookie value"
+})
+set_cookies("chat.openai.com", {
+  "access_token": "token value"
+})
+
+from g4f.gui import run_gui
+run_gui()
+```
+
+Alternatively, g4f reads the cookies with “browser_cookie3” from your browser
+or it starts a browser instance with selenium "webdriver" for logging in.
+If you use the pip package, you have to install “browser_cookie3” or "webdriver" by yourself.
+
+```bash
+pip install browser_cookie3
+pip install g4f[webdriver]
 ```
 
 ##### Using Browser
@@ -407,6 +486,26 @@ if __name__ == "__main__":
     main()
 ```
 
+##  API usage (POST)
+#### Chat completions
+Send the POST request to /v1/chat/completions with body containing the `model` method. This example uses python with requests library:
+```python
+import requests
+url = "http://localhost:1337/v1/chat/completions"
+body = {
+    "model": "gpt-3.5-turbo-16k",
+    "stream": False,
+    "messages": [
+        {"role": "assistant", "content": "What can you do?"}
+    ]
+}
+json_response = requests.post(url, json=body).json().get('choices', [])
+
+for choice in json_response:
+    print(choice.get('message', {}).get('content', ''))
+```
+
+
 ## 🚀 Providers and Models
 
 ### GPT-4
@@ -417,7 +516,6 @@ if __name__ == "__main__":
 | [chat.geekgpt.org](https://chat.geekgpt.org) | `g4f.Provider.GeekGpt` | ✔️ | ✔️ | ✔️ | ![Unknown](https://img.shields.io/badge/Unknown-grey) | ❌ |
 | [gptchatly.com](https://gptchatly.com) | `g4f.Provider.GptChatly` | ✔️ | ✔️ | ❌ | ![Unknown](https://img.shields.io/badge/Unknown-grey) | ❌ |
 | [liaobots.site](https://liaobots.site) | `g4f.Provider.Liaobots` | ✔️ | ✔️ | ✔️ | ![Unknown](https://img.shields.io/badge/Unknown-grey) | ❌ |
-| [www.phind.com](https://www.phind.com) | `g4f.Provider.Phind` | ❌ | ✔️ | ✔️ | ![Unknown](https://img.shields.io/badge/Unknown-grey) | ❌ |
 | [raycast.com](https://raycast.com) | `g4f.Provider.Raycast` | ✔️ | ✔️ | ✔️ | ![Unknown](https://img.shields.io/badge/Unknown-grey) | ✔️ |
 
 ### GPT-3.5

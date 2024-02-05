@@ -24,3 +24,18 @@ class RetryNoProviderError(Exception):
 
 class VersionNotFoundError(Exception):
     pass
+
+class NestAsyncioError(Exception):
+    pass
+
+class ModelNotSupportedError(Exception):
+    pass
+
+class MissingRequirementsError(Exception):
+    pass
+
+class MissingAiohttpSocksError(MissingRequirementsError):
+    pass
+
+class MissingAccessToken(Exception):
+    pass
