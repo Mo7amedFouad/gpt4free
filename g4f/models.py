@@ -15,15 +15,12 @@ from .Provider   import (
     DeepInfra,
     ChatBase,
     Liaobots,
-    GeekGpt,
-    FakeGpt,
     FreeGpt,
     Llama2,
-    Vercel, 
-    Phind,
+    Vercel,
+    Gemini,
     GptGo,
     Gpt6,
-    Bard, 
     Bing,
     You,
     Pi,
@@ -53,7 +50,7 @@ default = Model(
     base_provider = "",
     best_provider = RetryProvider([
         Bing,
-        ChatgptAi, GptGo, GeekGpt,
+        ChatgptAi, GptGo,
         You,
         Chatgpt4Online
     ])
@@ -65,7 +62,6 @@ gpt_35_long = Model(
     base_provider = 'openai',
     best_provider = RetryProvider([
         FreeGpt, You,
-        GeekGpt, FakeGpt,
         Chatgpt4Online,
         ChatgptDemoAi,
         ChatgptNext,
@@ -89,7 +85,7 @@ gpt_4 = Model(
     name          = 'gpt-4',
     base_provider = 'openai',
     best_provider = RetryProvider([
-        Bing, Phind, Liaobots, 
+        Bing, Liaobots, 
     ])
 )
 
@@ -121,6 +117,12 @@ codellama_34b_instruct = Model(
     name          = "codellama/CodeLlama-34b-Instruct-hf",
     base_provider = "huggingface",
     best_provider = RetryProvider([HuggingChat, PerplexityLabs, DeepInfra])
+)
+
+codellama_70b_instruct = Model(
+    name          = "codellama/CodeLlama-70b-Instruct-hf",
+    base_provider = "huggingface",
+    best_provider = DeepInfra
 )
 
 # Mistral
@@ -168,10 +170,10 @@ openchat_35 = Model(
 )
 
 # Bard
-bard = palm = Model(
-    name          = 'palm',
+gemini = bard = palm = Model(
+    name          = 'gemini',
     base_provider = 'google',
-    best_provider = Bard
+    best_provider = Gemini
 )
 
 claude_v2 = Model(
@@ -256,6 +258,7 @@ class ModelUtils:
         'llama2-13b': llama2_13b,
         'llama2-70b': llama2_70b,
         'codellama-34b-instruct': codellama_34b_instruct,
+        'codellama-70b-instruct': codellama_70b_instruct,
         
         'mixtral-8x7b': mixtral_8x7b,
         'mistral-7b': mistral_7b,
@@ -264,8 +267,8 @@ class ModelUtils:
         'airoboros-70b': airoboros_70b,
         'airoboros-l2-70b': airoboros_l2_70b,
         'openchat_3.5': openchat_35,
+        'gemini': gemini,
         'gemini-pro': gemini_pro,
-        'bard': bard,
         'claude-v2': claude_v2,
         'pi': pi
     }

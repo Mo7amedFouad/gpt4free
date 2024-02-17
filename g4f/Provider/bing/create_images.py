@@ -7,10 +7,9 @@ from __future__ import annotations
 import asyncio
 import time
 import json
-import os
 from aiohttp import ClientSession, BaseConnector
 from urllib.parse import quote
-from typing import Generator, List, Dict
+from typing import List, Dict
 
 try:
     from bs4 import BeautifulSoup
@@ -19,11 +18,10 @@ except ImportError:
     has_requirements = False
 
 from ..create_images import CreateImagesProvider
-from ..helper import get_cookies, get_connector
-from ...webdriver import WebDriver, get_driver_cookies, get_browser
+from ..helper import get_connector
 from ...base_provider import ProviderType
-from ...image import ImageResponse
-from ...errors import MissingRequirementsError, MissingAccessToken
+from ...errors import MissingRequirementsError
+from ...webdriver import WebDriver, get_driver_cookies, get_browser
 
 BING_URL = "https://www.bing.com"
 TIMEOUT_LOGIN = 1200
@@ -56,6 +54,21 @@ def wait_for_login(driver: WebDriver, timeout: int = TIMEOUT_LOGIN) -> None:
         if time.time() - start_time > timeout:
             raise RuntimeError("Timeout error")
         time.sleep(0.5)
+
+def get_cookies_from_browser(proxy: str = None) -> dict[str, str]:
+    """
+    Retrieves cookies from the browser using webdriver.
+
+    Args:
+        proxy (str, optional): Proxy configuration.
+
+    Returns:
+        dict[str, str]: Retrieved cookies.
+    """
+    with get_browser(proxy=proxy) as driver:
+        wait_for_login(driver)
+        time.sleep(1)
+        return get_driver_cookies(driver)
 
 def create_session(cookies: Dict[str, str], proxy: str = None, connector: BaseConnector = None) -> ClientSession:
     """
@@ -163,73 +176,14 @@ def read_images(html_content: str) -> List[str]:
     """
     soup = BeautifulSoup(html_content, "html.parser")
     tags = soup.find_all("img", class_="mimg")
+    if not tags:
+        tags = soup.find_all("img", class_="gir_mmimg")
     images = [img["src"].split("?w=")[0] for img in tags]
     if any(im in BAD_IMAGES for im in images):
         raise RuntimeError("Bad images found")
     if not images:
         raise RuntimeError("No images found")
     return images
-
-def get_cookies_from_browser(proxy: str = None) -> dict[str, str]:
-    """
-    Retrieves cookies from the browser using webdriver.
-
-    Args:
-        proxy (str, optional): Proxy configuration.
-
-    Returns:
-        dict[str, str]: Retrieved cookies.
-    """
-    with get_browser(proxy=proxy) as driver:
-        wait_for_login(driver)
-        time.sleep(1)
-        return get_driver_cookies(driver)
-
-class CreateImagesBing:
-    """A class for creating images using Bing."""
-
-    def __init__(self, cookies: dict[str, str] = {}, proxy: str = None) -> None:
-        self.cookies = cookies
-        self.proxy = proxy
-
-    def create_completion(self, prompt: str) -> Generator[ImageResponse, None, None]:
-        """
-        Generator for creating imagecompletion based on a prompt.
-
-        Args:
-            prompt (str): Prompt to generate images.
-
-        Yields:
-            Generator[str, None, None]: The final output as markdown formatted string with images.
-        """
-        cookies = self.cookies or get_cookies(".bing.com", False)
-        if "_U" not in cookies:
-            login_url = os.environ.get("G4F_LOGIN_URL")
-            if login_url:
-                yield f"Please login: [Bing]({login_url})\n\n"
-            try:
-                self.cookies = get_cookies_from_browser(self.proxy)
-            except MissingRequirementsError as e:
-                raise MissingAccessToken(f'Missing "_U" cookie. {e}')
-        yield asyncio.run(self.create_async(prompt))
-
-    async def create_async(self, prompt: str) -> ImageResponse:
-        """
-        Asynchronously creates a markdown formatted string with images based on the prompt.
-
-        Args:
-            prompt (str): Prompt to generate images.
-
-        Returns:
-            str: Markdown formatted string with images.
-        """
-        cookies = self.cookies or get_cookies(".bing.com", False)
-        if "_U" not in cookies:
-            raise MissingAccessToken('Missing "_U" cookie')
-        proxy = os.environ.get("G4F_PROXY")
-        async with create_session(cookies, proxy) as session:
-            images = await create_images(session, prompt, self.proxy)
-            return ImageResponse(images, prompt, {"preview": "{image}?w=200&h=200"})
 
 def patch_provider(provider: ProviderType) -> CreateImagesProvider:
     """
@@ -241,9 +195,10 @@ def patch_provider(provider: ProviderType) -> CreateImagesProvider:
     Returns:
         CreateImagesProvider: The patched provider with image creation capabilities.
     """
-    service = CreateImagesBing()
+    from ..BingCreateImages import BingCreateImages
+    service = BingCreateImages()
     return CreateImagesProvider(
         provider,
-        service.create_completion,
+        service.create,
         service.create_async
     )

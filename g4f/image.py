@@ -46,9 +46,8 @@ def to_image(image: ImageType, is_svg: bool = False) -> Image:
         return open_image(BytesIO(image))
     elif not isinstance(image, Image):
         image = open_image(image)
-        copy = image.copy()
-        copy.format = image.format
-        return copy
+        image.load()
+        return image
     return image
 
 def is_allowed_extension(filename: str) -> bool:
@@ -138,12 +137,12 @@ def get_orientation(image: Image) -> int:
         if orientation is not None:
             return orientation
 
-def process_image(img: Image, new_width: int, new_height: int) -> Image:
+def process_image(image: Image, new_width: int, new_height: int) -> Image:
     """
     Processes the given image by adjusting its orientation and resizing it.
 
     Args:
-        img (Image): The image to process.
+        image (Image): The image to process.
         new_width (int): The new width of the image.
         new_height (int): The new height of the image.
 
@@ -151,25 +150,27 @@ def process_image(img: Image, new_width: int, new_height: int) -> Image:
         Image: The processed image.
     """
     # Fix orientation
-    orientation = get_orientation(img)
+    orientation = get_orientation(image)
     if orientation:
         if orientation > 4:
-            img = img.transpose(FLIP_LEFT_RIGHT)
+            image = image.transpose(FLIP_LEFT_RIGHT)
         if orientation in [3, 4]:
-            img = img.transpose(ROTATE_180)
+            image = image.transpose(ROTATE_180)
         if orientation in [5, 6]:
-            img = img.transpose(ROTATE_270)
+            image = image.transpose(ROTATE_270)
         if orientation in [7, 8]:
-            img = img.transpose(ROTATE_90)
+            image = image.transpose(ROTATE_90)
     # Resize image
-    img.thumbnail((new_width, new_height))
+    image.thumbnail((new_width, new_height))
     # Remove transparency
-    if img.mode != "RGB":
-        img.load()
-        white = new_image('RGB', img.size, (255, 255, 255))
-        white.paste(img, mask=img.split()[3]) 
+    if image.mode == "RGBA":
+        image.load()
+        white = new_image('RGB', image.size, (255, 255, 255))
+        white.paste(image, mask=image.split()[-1])
         return white
-    return img
+    elif image.mode != "RGB":
+        image = image.convert("RGB")
+    return image
 
 def to_base64_jpg(image: Image, compression_rate: float) -> str:
     """
@@ -186,7 +187,7 @@ def to_base64_jpg(image: Image, compression_rate: float) -> str:
     image.save(output_buffer, format="JPEG", quality=int(compression_rate * 100))
     return base64.b64encode(output_buffer.getvalue()).decode()
 
-def format_images_markdown(images, alt: str, preview: str = None) -> str:
+def format_images_markdown(images: Union[str, list], alt: str, preview: Union[str, list] = None) -> str:
     """
     Formats the given images as a markdown string.
 
@@ -201,29 +202,38 @@ def format_images_markdown(images, alt: str, preview: str = None) -> str:
     if isinstance(images, str):
         images = f"[![{alt}]({preview.replace('{image}', images) if preview else images})]({images})"
     else:
+        if not isinstance(preview, list):
+            preview = [preview.replace('{image}', image) if preview else image for image in images]
         images = [
-            f"[![#{idx+1} {alt}]({preview.replace('{image}', image) if preview else image})]({image})"
-            for idx, image in enumerate(images)
+            f"[![#{idx+1} {alt}]({preview[idx]})]({image})" for idx, image in enumerate(images)
         ]
         images = "\n".join(images)
     start_flag = "<!-- generated images start -->\n"
     end_flag = "<!-- generated images end -->\n"
     return f"\n{start_flag}{images}\n{end_flag}\n"
 
-def to_bytes(image: Image) -> bytes:
+def to_bytes(image: ImageType) -> bytes:
     """
     Converts the given image to bytes.
 
     Args:
-        image (Image.Image): The image to convert.
+        image (ImageType): The image to convert.
 
     Returns:
         bytes: The image as bytes.
     """
-    bytes_io = BytesIO()
-    image.save(bytes_io, image.format)
-    image.seek(0)
-    return bytes_io.getvalue()
+    if isinstance(image, bytes):
+        return image
+    elif isinstance(image, str):
+        is_data_uri_an_image(image)
+        return extract_data_uri(image)
+    elif isinstance(image, Image):
+        bytes_io = BytesIO()
+        image.save(bytes_io, image.format)
+        image.seek(0)
+        return bytes_io.getvalue()
+    else:
+        return image.read()
 
 class ImageResponse:
     def __init__(
